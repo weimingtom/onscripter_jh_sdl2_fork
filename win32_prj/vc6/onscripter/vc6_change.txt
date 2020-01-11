@@ -1,0 +1,171 @@
+1. include
+..\..\..\extlib\src\bzip2-1.0.4,
+..\..\..\extlib\src\freetype-2.3.5\include,
+..\..\..\extlib\src\jpeg-6b,
+..\jpeg,
+..\..\..\extlib\src\libogg-1.1.3\include,
+..\..\..\extlib\src\libpng-1.2.24,
+..\..\..\extlib\src\libvorbis-1.2.0\include,
+..\..\..\extlib\src\SDL-1.2.13\include,
+..\..\..\extlib\src\SDL_image-1.2.6,
+..\..\..\extlib\src\SDL_mixer-1.2.8,
+..\..\..\extlib\src\SDL_ttf-2.0.8,
+..\..\..\extlib\src\smpeg,
+..\..\..\extlib\src\zlib-1.2.3
+..\SDL
+
+..\..\..\extlib\src\bzip2-1.0.4,..\..\..\extlib\src\freetype-2.3.5\include,..\..\..\extlib\src\jpeg-6b,..\jpeg,..\..\..\extlib\src\libogg-1.1.3\include,..\..\..\extlib\src\libpng-1.2.24,..\..\..\extlib\src\libvorbis-1.2.0\include,..\..\..\extlib\src\SDL-1.2.13\include,..\..\..\extlib\src\SDL_image-1.2.6,..\..\..\extlib\src\SDL_mixer-1.2.8,..\..\..\extlib\src\SDL_ttf-2.0.8,..\..\..\extlib\src\smpeg,..\..\..\extlib\src\zlib-1.2.3,..\SDL
+
+2. lib
+full set:
+kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib winmm.lib dxguid.lib
+small set:
+winmm.lib dxguid.lib user32.lib gdi32.lib advapi32.lib
+
+
+3. default.ttf
+see 
+http://svn.unclemion.com/repo/onscripter/libraries/fonts/
+http://svn.unclemion.com/repo/onscripter/libraries/fonts/README
+must rename to default.ttf
+
+4. output
+see
+C:\Documents and Settings\Administrator\Application Data\ONScripter-EN
+
+
+-------------------
+
+FontInfo.obj : error LNK2001: unresolved external symbol _TTF_OpenFont
+ONScripterLabel.obj : error LNK2001: unresolved external symbol _TTF_Init
+ONScripterLabel.obj : error LNK2001: unresolved external symbol _TTF_GlyphMetrics
+ONScripterLabel_text.obj : error LNK2001: unresolved external symbol _TTF_GlyphMetrics
+ONScripterLabel_text.obj : error LNK2001: unresolved external symbol _TTF_RenderGlyph_Shaded
+ONScripterLabel_text.obj : error LNK2001: unresolved external symbol _TTF_FontAscent
+
+----------------------
+[20170114]
+
+932->936
+
+    int wc_size = MultiByteToWideChar(936/*932*/, 0, src_buf, -1, NULL, 0);
+    wchar_t *u16_tmp = new wchar_t[wc_size];
+    MultiByteToWideChar(936/*932*/, 0, src_buf, -1, u16_tmp, wc_size);
+    int mb_size = WideCharToMultiByte(CP_UTF8, 0, u16_tmp, wc_size, dst_buf, 0, NULL, NULL);
+    WideCharToMultiByte(CP_UTF8, 0, u16_tmp, wc_size, dst_buf, mb_size, NULL, NULL);
+    delete[] u16_tmp;
+
+if convertFromSJISToUTF8 is 932 -> crash here -> 
+int ONScripterLabel::captionCommand()
+{
+    const char* buf = script_h.readStr();
+    size_t len = strlen(buf);
+
+    char *buf2 = new char[len*2+3];
+    char *buf1 = new char[len+1];
+    strcpy(buf1, buf);
+    DirectReader::convertFromSJISToUTF8(buf2, buf1);
+    delete[] buf1;
+
+    setStr( &wm_title_string, buf2 );
+    setStr( &wm_icon_string,  buf2 );
+-->    delete[] buf2;
+
+breakpoint:
+	SDL_SetVideoMode
+
+breakpoint:
+	setScaled
+	scaled_flag
+
+breakpoint:
+	TTF_GlyphMetrics
+
+--->
+
+void ONScripterLabel::drawGlyph( SDL_Surface *dst_surface, Fontinfo *info, SDL_Color &color, char* text, int xy[2], bool shadow_flag, AnimationInfo *cache_info, SDL_Rect *clip, SDL_Rect &dst_rect )
+{
+    //in case of font size 0
+    if ((info->font_size_xy[0] == 0) || (info->font_size_xy[1] == 0))
+        return;
+
+    unsigned short unicode;
+    if (IS_TWO_BYTE(text[0])){
+        unsigned index = ((unsigned char*)text)[0];
+        index = index << 8 | ((unsigned char*)text)[1];
+        unicode = convSJIS2UTF16( index );
+    }
+    else{
+-->        unicode = convSJIS2UTF16( ((unsigned char*)text)[0] );
+    }
+
+
+-->
+
+unsigned short convSJIS2UTF16( unsigned short in )
+{
+    if (!sjis_2_utf16_initialized)
+        initSJIS2UTF16();
+
+    //ascii range: SJIS 0x00 - 0x7f -> UTF16 0x0000 - 0x007f
+    if (in <= 0x7f)
+        return in;
+
+    //half-width kana range: SJIS 0xa1 - 0xdf -> UTF16 0xff61 - 0xff9f
+    if ((in <= 0xdf) && (in >= 0xa1))
+        return in + 0xfec0;
+
+    //double-byte SJIS range 1: 0x8140 - 0x9ffc
+
+------------------------------------
+gb2312 problem
+
+script_h.getStringBuffer()[9]
+
+a8 8b a1 a1 c3 a8 c3 a8
+c8 ed 6a 70 67 22 2c 33
+
+Mod 01->
+
+//#define IS_TWO_BYTE(x) \
+//        ( ((x) & 0xe0) == 0xe0 || ((x) & 0xe0) == 0x80 )
+#define IS_TWO_BYTE(x) \
+        ( ((x) & 0xe0) == 0xe0 || ((x) & 0xe0) == 0x80 || \
+			(((x) & 0xff) >=0xA1 && ((x) & 0xff) <=0xFE) )
+
+Mod 02->
+
+void ONScripterLabel::drawGlyph( SDL_Surface *dst_surface, Fontinfo *info, SDL_Color &color, char* text, int xy[2], bool shadow_flag, AnimationInfo *cache_info, SDL_Rect *clip, SDL_Rect &dst_rect )
+{
+    //in case of font size 0
+    if ((info->font_size_xy[0] == 0) || (info->font_size_xy[1] == 0))
+        return;
+
+    unsigned short unicode;
+#if 0
+    if (IS_TWO_BYTE(text[0])){
+        unsigned index = ((unsigned char*)text)[0];
+        index = index << 8 | ((unsigned char*)text)[1];
+        unicode = convSJIS2UTF16( index );
+    }
+    else{
+        unicode = convSJIS2UTF16( ((unsigned char*)text)[0] );
+    }
+#else
+	{
+		char text2[3] = {0};
+		text2[0] = text[0];
+		text2[1] = text[1];
+		text2[2] = 0;
+		int wc_size = MultiByteToWideChar(936/*932*/, 0, text2, -1, NULL, 0);
+		wchar_t *u16_tmp = new wchar_t[wc_size];
+		MultiByteToWideChar(936/*932*/, 0, text2, -1, u16_tmp, wc_size);
+		unsigned short unicode2 = (unsigned short)*u16_tmp;
+		delete[] u16_tmp;
+		//unicode = text2[0] << 8 | text2[1];
+		unicode = unicode2;
+		//unicode = (unicode2 & 0xff) << 8 | ((unicode2 >> 8) & 0xff);
+	}
+#endif
+
+------------------------------------
