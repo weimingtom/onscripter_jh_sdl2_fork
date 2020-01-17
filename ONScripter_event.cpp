@@ -1146,7 +1146,11 @@ void ONScripter::timerEvent(bool init_flag)
     
     int duration = 0;
     if (event_mode & WAIT_TIMER_MODE){
-        proceedAnimation(current_time);
+		
+		//FIXME:
+		//OutputDebugString("proceedAnimation\n");
+        
+		proceedAnimation(current_time);
         duration = calcDurationToNextAnimation() - current_time;
         if (duration < 0) duration = 0;
     }
