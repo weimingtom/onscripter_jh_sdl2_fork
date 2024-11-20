@@ -25,3 +25,6 @@ Solve: Use vmware 15 instead,
 可能以后会想办法把这个宏放入到Onscripter-Jh中 ​​​
 ```
 * (TODO) onscripter_jh_sdl2_fork-master_v4_20241116.rar  
+
+## See Also  
+* https://github.com/weimingtom/onscripter_sdl2_fork  
