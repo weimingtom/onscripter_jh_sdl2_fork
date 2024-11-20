@@ -26,5 +26,5 @@ Solve: Use vmware 15 instead,
 ```
 * (TODO) onscripter_jh_sdl2_fork-master_v4_20241116.rar  
 
-## See Also  
-* https://github.com/weimingtom/onscripter_sdl2_fork  
+## SJIS version see also   
+* https://github.com/weimingtom/onscripter_sdl2_fork   
